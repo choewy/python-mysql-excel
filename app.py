@@ -6,12 +6,17 @@ class MySQL:
     def __init__(self, host: str = None,
                  port: int = 3306,
                  user: str = "root",
-                 password: str = "password") -> None:
+                 password: str = "password",
+                 db: str = None) -> None:
         self.conn = pymysql.connect(
             host=host,
             port=port,
             user=user,
-            password=password
+            password=password,
+            db=db,
+            autocommit=True,
+            charset="utf8",
+            cursorclass=pymysql.cursors.DictCursor
         )
         self.curs = self.conn.cursor()
         self._fields_format = {
@@ -32,7 +37,6 @@ class MySQL:
 
         try:
             self.conn.query(query)
-            self.conn.commit()
             print("완료")
         except Exception as error:
             response["success"] = False
@@ -51,7 +55,6 @@ class MySQL:
 
         try:
             self.conn.query(query)
-            self.conn.commit()
             self.curs = self.conn.cursor()
             print("완료")
         except Exception as error:
@@ -97,7 +100,6 @@ class MySQL:
 
         try:
             self.curs.execute(query)
-            self.conn.commit()
             print("완료")
         except Exception as error:
             response["success"] = False
@@ -115,7 +117,21 @@ class MySQL:
 
         try:
             self.curs.executemany(query, rows)
-            self.conn.commit()
+            print("완료")
+        except Exception as error:
+            response["success"] = False
+            response["error"] = error
+            print(f"실패\t{error}")
+
+        return response
+
+    def select_to_list(self, query):
+        print("데이터 조회 중 ...", end="\t")
+        response = {"success": True}
+
+        try:
+            self.curs.execute(query)
+            response["rows"] = self.curs.fetchall()
             print("완료")
         except Exception as error:
             response["success"] = False
@@ -145,57 +161,65 @@ class ExcelReader:
 
         return response
 
-    def to_mysql(self, db_name: str, tbl: str, fields: [], rows: []) -> {}:
-        self.db.use_database(db_name)
+    def to_mysql(self, tbl: str, fields: [], rows: []) -> {}:
         self.db.create_table(tbl, fields)
         return self.db.insert_many(tbl, [field["field"] for field in fields], rows)
 
 
 if __name__ == "__main__":
-    mysql = MySQL()
+    """ EXCEL DATA TO MYSQL
+    # mysql = MySQL("stdte")
+    # file_path = "id_20220210.xlsx"
+    #     new_tbl = "id_20220210"
+    #     new_fields = [
+    #         {
+    #             "field": "no",
+    #             "type": "VARCHAR(20)",
+    #             "null": False,
+    #             "auto_increment": False,
+    #             "primary_key": False
+    #         }, {
+    #             "field": "cable_no",
+    #             "type": "VARCHAR(100)",
+    #             "null": False,
+    #             "auto_increment": False,
+    #             "primary_key": False
+    #         }, {
+    #             "field": "raceway_no",
+    #             "type": "VARCHAR(100)",
+    #             "null": False,
+    #             "auto_increment": False,
+    #             "primary_key": False
+    #         }, {
+    #             "field": "sequence",
+    #             "type": "VARCHAR(10)",
+    #             "null": False,
+    #             "auto_increment": False,
+    #             "primary_key": False
+    #         }, {
+    #             "field": "raceway_type",
+    #             "type": "VARCHAR(100)",
+    #             "null": False,
+    #             "auto_increment": False,
+    #             "primary_key": False
+    #         }, {
+    #             "field": "room_no",
+    #             "type": "VARCHAR(20)",
+    #             "null": False,
+    #             "auto_increment": False,
+    #             "primary_key": False
+    #         }
+    #     ]
+    # excel_reader = ExcelReader(file_path, mysql)
+    # res = excel_reader.read_excel()
+    # if res["success"]:
+    #     data = res["df"].values.tolist()
+    #     excel_reader.to_mysql(new_tbl, new_fields, data)
+    """
 
-    file_path = "id_20220210.xlsx"
-    new_table = "id_20220210"
-    new_fields = [
-        {
-            "field": "no",
-            "type": "VARCHAR(20)",
-            "null": False,
-            "auto_increment": False,
-            "primary_key": False
-        }, {
-            "field": "cable_no",
-            "type": "VARCHAR(100)",
-            "null": False,
-            "auto_increment": False,
-            "primary_key": False
-        }, {
-            "field": "raceway_no",
-            "type": "VARCHAR(100)",
-            "null": False,
-            "auto_increment": False,
-            "primary_key": False
-        }, {
-            "field": "sequence",
-            "type": "VARCHAR(10)",
-            "null": False,
-            "auto_increment": False,
-            "primary_key": False
-        }, {
-            "field": "raceway_type",
-            "type": "VARCHAR(100)",
-            "null": False,
-            "auto_increment": False,
-            "primary_key": False
-        }, {
-            "field": "room_no",
-            "type": "VARCHAR(20)",
-            "null": False,
-            "auto_increment": False,
-            "primary_key": False
-        }
-    ]
+    mysql = MySQL(db="stdte")
+    result = mysql.select_to_list("SELECT * FROM id_20220210;")
 
-
-
-
+    if result["success"]:
+        df = pd.DataFrame(result["rows"])
+        print(df)
